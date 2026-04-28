@@ -1,0 +1,144 @@
+{
+  "metadata": {
+    "currency": "USD",
+    "unit": "per 1M tokens",
+    "last_updated": "2026-04-23",
+    "source": "Official pricing as of April 2026"
+  },
+  "anthropic": {
+    "claude-opus-4": {
+      "input": 15.0,
+      "output": 75.0,
+      "tier": "premium",
+      "best_for": "architecture, code_review, security"
+    },
+    "claude-opus-4-7": {
+      "input": 15.0,
+      "output": 75.0,
+      "tier": "premium",
+      "best_for": "architecture, code_review, security"
+    },
+    "claude-sonnet-4": {
+      "input": 2.0,
+      "output": 10.0,
+      "tier": "mid",
+      "best_for": "general purpose, config, documentation"
+    },
+    "claude-3-5-sonnet": {
+      "input": 2.0,
+      "output": 10.0,
+      "tier": "mid",
+      "best_for": "general purpose, config, documentation"
+    },
+    "claude-haiku-3-5": {
+      "input": 0.80,
+      "output": 4.0,
+      "tier": "budget",
+      "best_for": "simple tasks, validation"
+    },
+    "claude-3-haiku": {
+      "input": 0.25,
+      "output": 1.25,
+      "tier": "budget",
+      "best_for": "simple tasks, validation"
+    }
+  },
+  "openai": {
+    "gpt-4.1": {
+      "input": 2.0,
+      "output": 8.0,
+      "tier": "mid",
+      "best_for": "code generation, algorithms, workers"
+    },
+    "gpt-4.1-mini": {
+      "input": 0.4,
+      "output": 1.6,
+      "tier": "budget",
+      "best_for": "fast tasks, tests, simple code"
+    },
+    "gpt-4o": {
+      "input": 1.5,
+      "output": 6.0,
+      "tier": "mid",
+      "best_for": "code generation, multi-modal, workers"
+    },
+    "gpt-4o-mini": {
+      "input": 0.15,
+      "output": 0.6,
+      "tier": "budget",
+      "best_for": "fast tasks, tests, validation"
+    },
+    "gpt-4-turbo": {
+      "input": 10.0,
+      "output": 30.0,
+      "tier": "premium",
+      "best_for": "complex analysis, security review"
+    }
+  },
+  "google": {
+    "gemini-2.5-pro": {
+      "input": 1.25,
+      "output": 10.0,
+      "tier": "mid",
+      "best_for": "research, analysis, reasoning"
+    },
+    "gemini-2.5-flash": {
+      "input": 0.05,
+      "output": 0.15,
+      "tier": "budget",
+      "best_for": "fast inference, routing, squad leaders"
+    },
+    "gemini-2.0-flash": {
+      "input": 0.08,
+      "output": 0.32,
+      "tier": "budget",
+      "best_for": "fast inference, routing"
+    }
+  },
+  "deepseek": {
+    "deepseek-reasoner": {
+      "input": 0.55,
+      "output": 2.19,
+      "tier": "mid",
+      "best_for": "complex reasoning, algorithms, tests"
+    },
+    "deepseek-chat": {
+      "input": 0.14,
+      "output": 0.56,
+      "tier": "budget",
+      "best_for": "cost-effective code, general purpose"
+    },
+    "deepseek-coder": {
+      "input": 0.14,
+      "output": 0.28,
+      "tier": "budget",
+      "best_for": "code generation, fastest/cheapest"
+    }
+  },
+  "cost_effectiveness_tiers": {
+    "ultra_budget": {
+      "min_price": 0.0,
+      "max_price": 0.5,
+      "use_for": "simple validation, routing, fast passes",
+      "models": ["gemini-2.5-flash", "deepseek-coder", "gpt-4o-mini"]
+    },
+    "budget": {
+      "min_price": 0.5,
+      "max_price": 2.0,
+      "use_for": "tests, documentation, general code",
+      "models": ["claude-haiku-3-5", "gpt-4.1-mini", "deepseek-chat"]
+    },
+    "balanced": {
+      "min_price": 2.0,
+      "max_price": 10.0,
+      "use_for": "code generation, algorithms, config",
+      "models": ["claude-sonnet-4", "gpt-4.1", "gpt-4o", "gemini-2.5-pro"]
+    },
+    "premium": {
+      "min_price": 10.0,
+      "max_price": 999.0,
+      "use_for": "architecture, security, complex reasoning",
+      "models": ["claude-opus-4", "gpt-4-turbo", "deepseek-reasoner"]
+    }
+  }
+}

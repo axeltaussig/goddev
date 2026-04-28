@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GodDev 3.0 — Mission Control</title>
+<meta name="description" content="GodDev 3.0 — Autonomous AI development team. Describe your app and watch Claude, GPT-4.1, Gemini and DeepSeek build it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #05070f;
+  --surface:  #0b0f1a;
+  --card:     #111827;
+  --card2:    #161e2e;
+  --border:   #1e2a3a;
+  --border2:  #253347;
+  --accent:   #3b82f6;
+  --accent2:  #8b5cf6;
+  --green:    #10b981;
+  --yellow:   #f59e0b;
+  --red:      #ef4444;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --claude:   #d97706;
+  --openai:   #10b981;
+  --gemini:   #3b82f6;
+  --deepseek: #8b5cf6;
+  --sidebar-w: 240px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+
+/* ── App shell ──────────────────────────────────── */
+.app { display: grid; grid-template-rows: 52px 1fr; height: 100vh; }
+
+/* ── Topbar ─────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: relative; z-index: 20;
+}
+
+.logo { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 800; flex-shrink: 0; }
+.logo-icon { font-size: 20px; filter: drop-shadow(0 0 8px #3b82f6); }
+.logo-text { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Model status lights */
+.model-lights { display: flex; gap: 5px; align-items: center; }
+.model-light {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  padding: 3px 7px; border-radius: 12px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: var(--muted); cursor: default; transition: all 0.3s;
+}
+.model-light .dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; flex-shrink: 0; transition: background 0.3s; }
+.model-light.ok   { color: var(--text); border-color: rgba(16,185,129,0.3); }
+.model-light.ok   .dot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 3s infinite; }
+.model-light.error .dot { background: var(--red); }
+.model-light.rate_limited .dot { background: var(--yellow); animation: pulse 1s infinite; }
+
+.topbar-mid { flex: 1; display: flex; justify-content: center; gap: 6px; }
+.status-pill {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600;
+  background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: var(--accent);
+}
+.status-pill.running { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--green); animation: pulse 2s infinite; }
+.status-pill.error   { background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.3);  color: var(--red); }
+
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.btn {
+  padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer;
+  font-size: 11px; font-weight: 600; transition: all 0.2s; white-space: nowrap;
+}
+.btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; }
+.btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-ghost { background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: rgba(255,255,255,0.1); }
+.btn-purple { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; }
+.btn-purple:hover { opacity: 0.85; }
+#selfImproveBtn.btn-improve-waiting {
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.75);
+  animation: pulse 2s ease-in-out infinite;
+}
+.btn-danger { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+/* ── Main 3-column layout ───────────────────────── */
+.main { display: grid; grid-template-columns: var(--sidebar-w) 1fr 360px; overflow: hidden; }
+
+/* ── Sidebar ────────────────────────────────────── */
+.sidebar {
+  display: flex; flex-direction: column;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-title { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+
+.new-chat-btn {
+  width: 100%; padding: 7px 10px; border-radius: 8px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(99,102,241,0.15));
+  border: 1px solid rgba(59,130,246,0.3); color: var(--accent);
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.new-chat-btn:hover { background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(99,102,241,0.25)); }
+
+.session-list { flex: 1; overflow-y: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+.session-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  transition: all 0.15s; margin-bottom: 2px; position: relative;
+  border: 1px solid transparent;
+}
+.session-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border); }
+.session-item.active {
+  background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3);
+}
+
+.session-icon { font-size: 18px; flex-shrink: 0; }
+.session-info { flex: 1; min-width: 0; }
+.session-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-meta { font-size: 10px; color: var(--muted); margin-top: 1px; display: flex; gap: 4px; align-items: center; }
+
+.session-badge {
+  font-size: 9px; padding: 1px 5px; border-radius: 6px; font-weight: 700;
+}
+.session-badge.running { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); animation: pulse 2s infinite; }
+.session-badge.complete { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+.session-badge.failed { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.session-badge.new { background: rgba(59,130,246,0.1); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
+
+.session-delete {
+  opacity: 0; width: 20px; height: 20px; border-radius: 5px;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+  color: var(--red); font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.session-item:hover .session-delete { opacity: 1; }
+.session-delete:hover { background: rgba(239,68,68,0.3); }
+
+.sidebar-empty { padding: 20px 12px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+/* ── Chat Panel ─────────────────────────────────── */
+.chat-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); min-height: 0; }
+
+.messages {
+  flex: 1; overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  min-height: 0;
+}
+
+.msg { display: flex; gap: 10px; animation: fadeIn 0.3s ease; max-width: 92%; }
+.msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 32px; height: 32px; border-radius: 9px; display: flex;
+  align-items: center; justify-content: center; font-size: 15px;
+  flex-shrink: 0; border: 1px solid var(--border);
+}
+.msg.user .msg-avatar { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+.msg.bot  .msg-avatar { background: var(--card); }
+
+.msg-body { display: flex; flex-direction: column; gap: 3px; }
+.msg.user .msg-body { align-items: flex-end; }
+
+.msg-label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.msg-bubble {
+  padding: 10px 13px; border-radius: 12px; font-size: 13px; line-height: 1.65;
+  max-width: 620px; word-break: break-word;
+}
+.msg.user .msg-bubble {
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(99,102,241,0.2));
+  border: 1px solid rgba(99,102,241,0.3);
+}
+.msg.bot .msg-bubble { background: var(--card); border: 1px solid var(--border); }
+.msg-bubble.blueprint { border-left: 3px solid var(--accent); }
+.msg-bubble.squad     { border-left: 3px solid var(--accent2); }
+.msg-bubble.critic    { border-left: 3px solid var(--yellow); }
+.msg-bubble.error     { border-left: 3px solid var(--red); }
+.msg-bubble.complete  { border-left: 3px solid var(--green); background: rgba(16,185,129,0.05); }
+.msg-bubble.integrator{ border-left: 3px solid #06b6d4; }
+
+.msg-bubble h1,.msg-bubble h2,.msg-bubble h3 { color: var(--accent); margin: 8px 0 4px; }
+.msg-bubble code { background: rgba(59,130,246,0.1); padding: 1px 5px; border-radius: 4px; font-size: 11px; font-family: 'Fira Code', monospace; }
+.msg-bubble pre { background: #080c1a; padding: 10px; border-radius: 8px; overflow-x: auto; margin: 6px 0; border: 1px solid var(--border); }
+.msg-bubble pre code { background: none; padding: 0; font-size: 11px; }
+.msg-bubble a { color: var(--accent); text-decoration: underline; }
+.msg-bubble strong { color: #fff; }
+.msg-bubble ul, .msg-bubble ol { padding-left: 18px; }
+.msg-bubble table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
+.msg-bubble th, .msg-bubble td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+.msg-bubble th { background: var(--card2); color: var(--accent); }
+
+.play-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  text-decoration: none; transition: all 0.2s;
+}
+.play-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(16,185,129,0.4); }
+
+/* Build progress bar */
+.build-progress {
+  padding: 10px 16px; background: var(--surface);
+  border-top: 1px solid var(--border); display: none; flex-shrink: 0;
+}
+.build-progress.active { display: block; }
+.bp-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; align-items: center; }
+.bp-cost { color: var(--green); font-weight: 700; font-size: 12px; }
+.bp-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.bp-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981); background-size: 200%; animation: shimmer 2s infinite; border-radius: 2px; transition: width 0.5s; }
+
+/* Input */
+.input-area {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  background: var(--surface); display: flex; gap: 8px; align-items: flex-end;
+  flex-shrink: 0;
+}
+.input-wrap { flex: 1; position: relative; }
+#prompt {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: 10px 14px; font-size: 13px;
+  resize: none; outline: none; line-height: 1.5; max-height: 120px;
+  transition: border-color 0.2s; font-family: inherit;
+}
+#prompt:focus { border-color: var(--accent); }
+#prompt::placeholder { color: var(--muted); }
+
+.send-btn {
+  width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.send-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.send-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+/* Welcome screen */
+.welcome {
+  margin: auto; padding: 30px 20px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.welcome h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.welcome p  { color: var(--muted); font-size: 13px; max-width: 380px; line-height: 1.7; }
+.quick-prompts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+.quick-prompt {
+  padding: 6px 12px; border-radius: 20px; font-size: 11px; cursor: pointer;
+  background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+  color: var(--accent); transition: all 0.2s;
+}
+.quick-prompt:hover { background: rgba(59,130,246,0.18); transform: translateY(-1px); }
+
+/* ── Right Panel ────────────────────────────────── */
+.right-panel { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+.panel-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.tab {
+  padding: 10px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+  color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s;
+  text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; min-height: 0; }
+.tab-pane { display: none; padding: 12px; }
+.tab-pane.active { display: block; }
+
+/* Agent cards */
+.agent-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px; margin-bottom: 8px;
+  animation: fadeIn 0.3s ease; transition: border-color 0.2s;
+}
+.agent-card.running { border-color: rgba(16,185,129,0.4); animation: pulse-border 2s infinite; }
+.agent-card.done    { border-color: rgba(16,185,129,0.2); }
+.agent-card.error   { border-color: rgba(239,68,68,0.3); }
+
+.agent-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.agent-name { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.agent-model-badge { font-size: 9px; padding: 2px 7px; border-radius: 8px; font-weight: 700; }
+.badge-claude   { background: rgba(217,119,6,0.15); color: var(--claude); border: 1px solid rgba(217,119,6,0.3); }
+.badge-openai   { background: rgba(16,185,129,0.15); color: var(--openai); border: 1px solid rgba(16,185,129,0.3); }
+.badge-gemini   { background: rgba(59,130,246,0.15); color: var(--gemini); border: 1px solid rgba(59,130,246,0.3); }
+.badge-deepseek { background: rgba(139,92,246,0.15); color: var(--deepseek); border: 1px solid rgba(139,92,246,0.3); }
+
+.agent-status-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); }
+.agent-status-row .cost-chip { color: var(--green); font-weight: 700; font-size: 10px; }
+
+.agent-current-file {
+  margin-top: 5px; padding: 4px 8px; border-radius: 6px;
+  background: var(--card2); border: 1px solid var(--border);
+  font-size: 10px; font-family: 'Fira Code', monospace; color: var(--accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.progress-bar { height: 2px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 2px; animation: shimmer 1.5s infinite; }
+
+/* File tree */
+.file-tree { font-family: 'Fira Code', monospace; font-size: 10px; }
+.file-item { display: flex; align-items: center; gap: 5px; padding: 3px 5px; border-radius: 5px; transition: background 0.15s; }
+.file-item:hover { background: rgba(255,255,255,0.04); }
+.file-item.pass { color: var(--green); }
+.file-item.fail { color: var(--red); }
+.file-item.pending { color: var(--muted); }
+.file-item .file-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-item .file-size { color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+/* Cost breakdown */
+.cost-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cost-model { font-size: 11px; font-weight: 600; width: 65px; flex-shrink: 0; }
+.cost-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.cost-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.cost-value { font-size: 10px; color: var(--muted); width: 52px; text-align: right; flex-shrink: 0; }
+.bar-claude   { background: var(--claude); }
+.bar-openai   { background: var(--openai); }
+.bar-gemini   { background: var(--gemini); }
+.bar-deepseek { background: var(--deepseek); }
+.cost-total { font-size: 13px; font-weight: 700; color: var(--green); margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.cost-tokens { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* Routing */
+.route-card { margin-bottom: 8px; padding: 8px 10px; background: var(--card); border-radius: 8px; }
+.route-role { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.route-row { display: flex; align-items: center; gap: 5px; font-size: 10px; margin-bottom: 2px; }
+
+/* Empty states */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; color: var(--muted); gap: 6px; font-size: 12px; text-align: center; }
+.empty-icon { font-size: 28px; opacity: 0.3; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes pulse-border { 0%,100% { border-color: rgba(16,185,129,0.4); } 50% { border-color: rgba(16,185,129,0.8); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid rgba(59,130,246,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── Top Bar ───────────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="logo">
+    <span class="logo-icon">⚡</span>
+    <span class="logo-text">GodDev 3.0</span>
+  </div>
+
+  <div class="model-lights" id="modelLights">
+    <div class="model-light" id="light-claude"   title="Claude — checking..."><span class="dot"></span>Claude</div>
+    <div class="model-light" id="light-openai"   title="GPT-4.1 — checking..."><span class="dot"></span>GPT-4.1</div>
+    <div class="model-light" id="light-gemini"   title="Gemini — checking..."><span class="dot"></span>Gemini</div>
+    <div class="model-light" id="light-deepseek" title="DeepSeek — checking..."><span class="dot"></span>DeepSeek</div>
+  </div>
+
+  <div class="topbar-mid">
+    <span class="status-pill" id="statusPill">READY</span>
+    <span id="projectLabel" style="font-size:11px;color:var(--muted);display:none"></span>
+  </div>
+
+  <div class="topbar-right">
+    <button class="btn btn-purple" onclick="triggerSelfImprovement()" id="selfImproveBtn">🔬 Improve</button>
+    <button class="btn btn-ghost" onclick="clearCurrentSession()" id="clearBtn">Clear</button>
+  </div>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- ── Sidebar ─────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Projects</div>
+      <button class="new-chat-btn" onclick="newSession()">
+        <span>+</span> New Build
+      </button>
+    </div>
+    <div class="session-list" id="sessionList">
+      <div class="sidebar-empty">No projects yet.<br>Start your first build!</div>
+    </div>
+  </aside>
+
+  <!-- ── Chat Panel ───────────────────────────────────── -->
+  <div class="chat-panel">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div style="font-size:44px;filter:drop-shadow(0 0 20px #3b82f6)">⚡</div>
+        <h1>GodDev Mission Control</h1>
+        <p>Describe the app you want to build. GodDev's AI squad — Claude, GPT-4.1, Gemini & DeepSeek — will architect, code, test and deploy it automatically.</p>
+        <div class="quick-prompts">
+          <div class="quick-prompt" onclick="usePrompt(this)">Build a retro Pac-Man game — simple design, most playable feeling</div>
+          <div class="quick-prompt" onclick="usePrompt(this)">Create a beautiful real-time todo app with drag & drop</div>
+          <div class="quick-prompt" onclick="usePrompt(this)">Build a markdown editor with live preview and dark mode</div>
+          <div class="quick-prompt" onclick="usePrompt(this)">Create a pixel art drawing tool with layers and export</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="build-progress" id="buildProgress">
+      <div class="bp-header">
+        <span id="bpLabel">Building...</span>
+        <span id="bpCount">0 files written</span>
+        <span class="bp-cost" id="bpCost"></span>
+      </div>
+      <div class="bp-bar"><div class="bp-fill" id="bpFill" style="width:5%"></div></div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="prompt" rows="1" placeholder="Describe the app you want to build..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- ── Right Panel ──────────────────────────────────── -->
+  <div class="right-panel">
+    <div class="panel-tabs">
+      <div class="tab active" id="tab-btn-agents"   onclick="switchTab('agents')">🤖 Agents</div>
+      <div class="tab"        id="tab-btn-files"    onclick="switchTab('files')">📁 Files</div>
+      <div class="tab"        id="tab-btn-cost"     onclick="switchTab('cost')">💰 Cost</div>
+      <div class="tab"        id="tab-btn-routing"  onclick="switchTab('routing')">🔀 Routes</div>
+    </div>
+
+    <div class="tab-content">
+      <!-- Agents Tab -->
+      <div class="tab-pane active" id="tab-agents">
+        <div id="agentCards">
+          <div class="empty"><div class="empty-icon">🤖</div><div>Agent activity appears here</div></div>
+        </div>
+      </div>
+
+      <!-- Files Tab -->
+      <div class="tab-pane" id="tab-files">
+        <div id="fileTree">
+          <div class="empty"><div class="empty-icon">📁</div><div>Files appear as they're written</div></div>
+        </div>
+      </div>
+
+      <!-- Cost Tab -->
+      <div class="tab-pane" id="tab-cost">
+        <div id="costBreakdown">
+          <div class="empty"><div class="empty-icon">💰</div><div>Cost breakdown appears during build</div></div>
+        </div>
+      </div>
+
+      <!-- Routing Tab -->
+      <div class="tab-pane" id="tab-routing">
+        <div id="routingPanel">
+          <div class="empty"><div class="empty-icon">🔀</div><div>Loading routes...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let ws = null;
+let currentJobId    = null;
+let isBuilding      = false;
+let filesWritten    = 0;
+let totalFiles      = 0;
+let agentRegistry   = {};   // name → {model, status, files, startTime, currentFile, cost}
+let fileRegistry    = [];
+let totalCostUSD    = 0;
+let agentCosts      = {};   // model → USD
+
+// Session management
+let sessions        = [];   // [{id, name, status, cost, jobId, createdAt, projectName}]
+let activeSessionId = null;
+
+// Self-improve: first collect human priorities in chat, then run the normal pipeline
+let improveAwaitingBrief = false;
+
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+const TAB_NAMES = ['agents','files','cost','routing'];
+function switchTab(name) {
+  TAB_NAMES.forEach(t => {
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'routing') loadRouting();
+}
+
+// ── Model health lights ────────────────────────────────────────────────────────
+const PROVIDER_LABELS = {
+  claude:'Claude Opus 4.7', openai:'GPT-4.1', gemini:'Gemini 2.5 Flash', deepseek:'DeepSeek V3'
+};
+function updateModelLight(provider, data) {
+  const el = document.getElementById('light-' + provider);
+  if (!el) return;
+  const status = data.status || 'unknown';
+  el.className = 'model-light ' + (status === 'ok' ? 'ok' : status === 'rate_limited' ? 'rate_limited' : status === 'error' ? 'error' : '');
+  const calls  = data.total_calls > 0 ? ` · ${data.total_calls} calls` : '';
+  const ago    = data.last_ok_ago != null ? ` · last OK ${data.last_ok_ago}s ago` : '';
+  const err    = data.last_error  ? ` · ⚠ ${data.last_error.slice(0,60)}` : '';
+  const mv     = data.model_version || '';
+  const sl     = status === 'ok' ? '🟢 Online' : status === 'configured' ? '🟡 Ready' : status === 'rate_limited' ? '🟡 Rate limited' : status === 'error' ? '🔴 Error' : '⚪ Unknown';
+  el.title     = `${PROVIDER_LABELS[provider] || provider}\n${mv}\n${sl}${calls}${ago}${err}`;
+}
+async function pollModelHealth() {
+  try {
+    const r = await fetch('/health/models');
+    const d = await r.json();
+    if (d.status === 'ok' && d.providers)
+      Object.entries(d.providers).forEach(([p, h]) => updateModelLight(p, h));
+  } catch(e) {}
+}
+pollModelHealth();
+setInterval(pollModelHealth, 15000);
+
+// ── Routing panel ──────────────────────────────────────────────────────────────
+const ROLE_COLORS  = { architect:'#d97706', backend:'#10b981', frontend:'#3b82f6', devops:'#8b5cf6', qa:'#ec4899', critic:'#f59e0b', cto:'#d97706', integrator:'#10b981', squad_lead:'#3b82f6' };
+const MODEL_ICONS  = { anthropic:'🟠', openai:'🟢', gemini:'🔵', deepseek:'🟣' };
+function getProviderIcon(model='') {
+  if (model.startsWith('anthropic')) return MODEL_ICONS.anthropic;
+  if (model.startsWith('gemini'))    return MODEL_ICONS.gemini;
+  if (model.toLowerCase().includes('deepseek')) return MODEL_ICONS.deepseek;
+  return MODEL_ICONS.openai;
+}
+async function loadRouting() {
+  const panel = document.getElementById('routingPanel');
+  try {
+    const r = await fetch('/models');
+    const d = await r.json();
+    if (d.status !== 'ok') throw new Error(d.error);
+    let html = `<div style="font-size:10px;color:var(--muted);padding:0 2px 6px">${d.total_deployments} deployments · affinity-driven worker routing · auto-fallback · circuit breaker ON</div>`;
+    for (const [role, deps] of Object.entries(d.roles)) {
+      const color = ROLE_COLORS[role] || '#64748b';
+      html += `<div class="route-card" style="border-left:3px solid ${color}">
+        <div class="route-role" style="color:${color}">${role}</div>`;
+      deps.forEach((dep,i) => {
+        const icon  = getProviderIcon(dep.model);
+        const label = i === 0 ? '● primary' : `↪ fallback ${i}`;
+        const lc    = i === 0 ? '#10b981' : '#64748b';
+        html += `<div class="route-row">
+          <span>${icon}</span>
+          <span style="flex:1;color:var(--text)">${dep.model.replace(/^(anthropic|openai|gemini)\//,'')}</span>
+          <span style="color:${lc};font-size:9px">${label}</span>
+          <span style="color:var(--muted);font-size:9px">×${dep.parallel}</span>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    panel.innerHTML = html;
+  } catch(e) {
+    panel.innerHTML = `<div class="empty"><div class="empty-icon">❌</div><div>${e.message}</div></div>`;
+  }
+}
+
+// ── Session management ─────────────────────────────────────────────────────────
+function createSession(name='New Build') {
+  const id = 'sess-' + Date.now();
+  const sess = { id, name, status: 'new', cost: 0, jobId: null, projectName: null, createdAt: new Date().toISOString() };
+  sessions.unshift(sess);
+  activeSessionId = id;
+  // Save to localStorage so it survives refresh
+  localStorage.setItem('goddev_active_session', id);
+  renderSidebar();
+  return sess;
+}
+
+function getActiveSession() { return sessions.find(s => s.id === activeSessionId); }
+
+function updateSession(id, update) {
+  const s = sessions.find(s => s.id === id);
+  if (s) Object.assign(s, update);
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('sessionList');
+  if (sessions.length === 0) {
+    list.innerHTML = '<div class="sidebar-empty">No projects yet.<br>Start your first build!</div>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => {
+    const isActive = s.id === activeSessionId;
+    const icon = s.projectName ? '📦' : '✏️';
+    const costStr = s.cost > 0 ? `$${s.cost.toFixed(4)}` : '';
+    const badgeClass = { running:'running', complete:'complete', failed:'failed', new:'new' }[s.status] || 'new';
+    const badgeLabel = { running:'Building', complete:'Done', failed:'Failed', new:'Ready' }[s.status] || 'New';
+    return `
+      <div class="session-item ${isActive ? 'active' : ''}" onclick="switchSession('${s.id}')">
+        <div class="session-icon">${icon}</div>
+        <div class="session-info">
+          <div class="session-name" title="${s.name}">${s.name}</div>
+          <div class="session-meta">
+            <span class="session-badge ${badgeClass}">${badgeLabel}</span>
+            ${costStr ? `<span style="color:var(--green);font-size:9px;font-weight:700">${costStr}</span>` : ''}
+          </div>
+        </div>
+        <button class="session-delete" onclick="deleteSession(event,'${s.id}')" title="Delete project">×</button>
+      </div>`;
+  }).join('');
+}
+
+function switchSession(id) {
+  if (isBuilding && id !== activeSessionId) {
+    alert('A build is running. Please wait for it to finish before switching.');
+    return;
+  }
+  activeSessionId = id;
+  // Save to localStorage so it survives refresh
+  localStorage.setItem('goddev_active_session', id);
+  renderSidebar();
+
+  // Reset UI to session state
+  const sess = sessions.find(s => s.id === id);
+  clearChatUI();
+
+  if (sess) {
+    if (sess.projectName) {
+      addBotMessage(`📦 **Project: ${sess.projectName}**\n[▶ Open App](/play/${sess.projectName}/)`, 'complete', `/play/${sess.projectName}/`);
+      document.getElementById('projectLabel').textContent = `/play/${sess.projectName}/`;
+      document.getElementById('projectLabel').style.display = 'block';
+    }
+    // If session has a job_id and is running, reconnect to WebSocket
+    if (sess.jobId && (sess.status === 'running' || sess.status === 'queued')) {
+      connectWebSocket(sess.jobId);
+    }
+  }
+}
+
+async function deleteSession(e, id) {
+  e.stopPropagation();
+  const sess = sessions.find(s => s.id === id);
+  if (!sess) return;
+  const name = sess.projectName || sess.name;
+  if (!confirm(`Delete "${name}"? This will remove all generated files from disk.`)) return;
+  // Remove files from server if project was built
+  if (sess.projectName) {
+    try {
+      await fetch(`/projects/${encodeURIComponent(sess.projectName)}`, { method: 'DELETE' });
+    } catch(e) { console.error('Delete failed:', e); }
+  }
+  sessions = sessions.filter(s => s.id !== id);
+  if (activeSessionId === id) {
+    activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+    clearChatUI();
+  }
+  renderSidebar();
+}
+
+function newSession() {
+  if (isBuilding) { alert('Wait for current build to finish.'); return; }
+  createSession();
+  clearChatUI();
+}
+
+// ── Quick prompts ──────────────────────────────────────────────────────────────
+function usePrompt(el) {
+  document.getElementById('prompt').value = el.textContent.trim();
+  autoResize(document.getElementById('prompt'));
+}
+
+// ── Send message ───────────────────────────────────────────────────────────────
+function formatApiError(data) {
+  if (!data) return '';
+  const d = data.detail;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map(x => (x && (x.msg || x.message)) || JSON.stringify(x)).join('; ');
+  return data.error || data.message || '';
+}
+
+function clearChatUI() {
+  const imp = document.getElementById('selfImproveBtn');
+  if (imp) imp.classList.remove('btn-improve-waiting');
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  const welcome = document.createElement('div');
+  welcome.id = 'welcome';
+  welcome.className = 'welcome';
+  welcome.innerHTML = `
+    <div style="font-size:44px;filter:drop-shadow(0 0 20px #3b82f6)">⚡</div>
+    <h1>GodDev Mission Control</h1>
+    <p>Describe the app you want to build. GodDev's AI squad will architect, code, test and deploy it automatically.</p>
+    <div class="quick-prompts">
+      <div class="quick-prompt" onclick="usePrompt(this)">Build a retro Pac-Man game — simple design, most playable feeling</div>
+      <div class="quick-prompt" onclick="usePrompt(this)">Create a beautiful real-time todo app with drag & drop</div>
+      <div class="quick-prompt" onclick="usePrompt(this)">Build a markdown editor with live preview and dark mode</div>
+      <div class="quick-prompt" onclick="usePrompt(this)">Create a pixel art drawing tool with layers and export</div>
+    </div>`;
+  msgs.appendChild(welcome);
+  // Reset state
+  agentRegistry = {}; fileRegistry = []; filesWritten = 0; totalFiles = 0;
+  totalCostUSD = 0; agentCosts = {};
+  updateAgentPanel(); updateFileTree([]); updateCostPanel(null);
+  document.getElementById('buildProgress').classList.remove('active');
+  document.getElementById('projectLabel').style.display = 'none';
+  document.getElementById('bpCost').textContent = '';
+  improveAwaitingBrief = false;
+  const pr = document.getElementById('prompt');
+  if (pr) pr.placeholder = 'Describe the app you want to build...';
+}
+
+function clearCurrentSession() {
+  if (isBuilding) { alert('Wait for current build to finish.'); return; }
+  clearChatUI();
+  if (activeSessionId) updateSession(activeSessionId, { status: 'new', cost: 0, projectName: null, jobId: null });
+}
+
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+async function sendMessage() {
+  const input = document.getElementById('prompt');
+  const text  = input.value.trim();
+  if (isBuilding) return;
+
+  // Improve flow: first message is the human steering brief, then self-improve runs
+  if (improveAwaitingBrief) {
+    if (!text) return;
+    improveAwaitingBrief = false;
+    input.placeholder = 'Describe the app you want to build...';
+    if (!activeSessionId) createSession('Self-improve');
+    const welcomeEl = document.getElementById('welcome');
+    if (welcomeEl) welcomeEl.style.display = 'none';
+    addMessage('user', text, 'info');
+    input.value = ''; autoResize(input);
+    await runSelfImproveWithInstruction(text);
+    return;
+  }
+
+  if (!text) return;
+
+  // Ensure we have an active session
+  if (!activeSessionId) createSession(text.slice(0, 35) + (text.length > 35 ? '…' : ''));
+  else {
+    updateSession(activeSessionId, { name: text.slice(0, 35) + (text.length > 35 ? '…' : '') });
+    localStorage.setItem('goddev_active_session', activeSessionId);
+  }
+
+  const welcomeEl = document.getElementById('welcome');
+  if (welcomeEl) welcomeEl.style.display = 'none';
+
+  addMessage('user', text, 'info');
+  input.value = ''; autoResize(input);
+
+  // Reset build state
+  agentRegistry = {}; fileRegistry = []; filesWritten = 0; totalFiles = 0;
+  totalCostUSD = 0; agentCosts = {};
+  updateAgentPanel(); updateFileTree([]); updateCostPanel(null);
+  startBuilding();
+
+  try {
+      const res  = await fetch('/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request: text, max_critic_iterations: 2, max_iterations: 3 }),
+      });
+      const data = await res.json();
+      currentJobId = data.job_id;
+      updateSession(activeSessionId, { jobId: data.job_id, status: 'running' });
+      // Save to localStorage so we can reconnect after refresh
+      localStorage.setItem('goddev_active_session', activeSessionId);
+      localStorage.setItem('goddev_last_job_id', data.job_id);
+      connectWebSocket(data.job_id);
+      addBotMessage(`🚀 Build queued — Job \`${data.job_id}\`\nConnecting to live stream...`, 'info');
+      
+      // Show cost estimate if available
+      if (data.cost_estimate) {
+        const est = data.cost_estimate;
+        let costMsg = `💰 **Estimated cost:** ~$${est.estimated_cost_usd}\n`;
+        costMsg += `📊 Tokens: ~${(est.estimated_tokens / 1000).toFixed(0)}K | Complexity: ${est.complexity_score}/100`;
+        if (est.warning) {
+          costMsg += `\n\n⚠️ ${est.warning}`;
+        }
+        if (est.optimization_tips && est.optimization_tips.length > 0) {
+          costMsg += `\n\n💡 **Tips:**\n`;
+          costMsg += est.optimization_tips.map(t => `• ${t}`).join('\n');
+        }
+        addBotMessage(costMsg, 'info');
+      }
+  } catch(e) {
+    addBotMessage(`❌ Failed to submit build: ${e.message}`, 'error');
+    stopBuilding();
+  }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+function connectWebSocket(jobId) {
+  if (ws) { try { ws.close(); } catch(e) {} }
+  const wsProto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${wsProto}//${location.host}/ws/${jobId}`);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'cost') { updateCostPanel(msg.data || msg.cost); return; }
+    if (msg.type === 'status') { handleStatusMsg(msg); return; }
+    const content = msg.content || msg.event || '';
+    const type    = msg.type || 'info';
+    if (!content) return;
+    processEvent(content, type, msg);
+  };
+  ws.onerror = () => addBotMessage('⚠️ WebSocket error — build continues in background', 'error');
+  ws.onclose = () => { if (isBuilding) setTimeout(() => pollStatus(jobId), 3000); };
+}
+
+function processEvent(content, type, msg) {
+  // Worker events → update file tree + agent card (but don't flood chat)
+  if (type === 'worker') {
+    const pathMatch  = content.match(/`([^`]+\.[a-z]+)`/);
+    const bytesMatch = content.match(/bytes=([\d,]+)/);
+    const pass       = content.includes('PASS');
+    const agentMatch = content.match(/\*\*\[([^\]]+) Worker\]\*\*/);
+    const labelMatch = content.match(/\*\*\[([^\]]+)\]\*\*/);
+    const agent      = agentMatch ? agentMatch[1].toLowerCase() : 'openai';
+    const agentName  = agentMatch ? agentMatch[1] : 'Worker';
+    if (pathMatch) {
+      const fullPath = pathMatch[1];
+      const fileName = fullPath.split('/').pop();
+      addFileToTree(fileName, fullPath, pass, bytesMatch ? bytesMatch[1] : '?', agent);
+      if (pass) filesWritten++;
+      updateBuildProgress();
+      updateAgentCard(agentName, agent, 'running', content, fullPath);
+    } else {
+      updateAgentCard(agentName, agent, 'running', content, null);
+    }
+    return;
+  }
+
+  if (type === 'blueprint' || content.includes('CTO Blueprint')) {
+    updateAgentCard('CTO', 'claude', 'done', content, null);
+    const filesMatch = content.match(/Files to Create \((\d+)\)/);
+    if (filesMatch) totalFiles = parseInt(filesMatch[1]);
+    if (content.length > 30) addBotMessage(content, 'blueprint');
+    return;
+  }
+
+  if (type === 'squad' || content.includes('Squad Lead')) {
+    const domainMatch = content.match(/\[([A-Z]+) Squad Lead\]/);
+    const domain      = domainMatch ? domainMatch[1] : 'Squad';
+    updateAgentCard(domain + ' Squad Lead', 'openai', 'running', content, null);
+    if (content.length > 30) addBotMessage(content, 'squad');
+    return;
+  }
+
+  if (type === 'critic' || content.includes('Critic')) {
+    updateAgentCard('Critic Council', 'openai', 'done', content, null);
+    if (content.length > 30) addBotMessage(content, 'critic');
+    return;
+  }
+
+  if (type === 'integrator' || content.includes('Integrat')) {
+    updateAgentCard('Integrator', 'claude', 'running', content, null);
+    if (content.length > 30) addBotMessage(content, 'integrator');
+    return;
+  }
+
+  if (type === 'complete' || content.includes('Build complete')) {
+    const playUrl = msg.play_url;
+    updateAgentCard('✅ Complete', 'openai', 'done', content, null);
+    addBotMessage(content + (playUrl ? `\n\n[▶ Open & Play the App](${playUrl})` : ''), 'complete', playUrl);
+    stopBuilding(playUrl);
+    if (playUrl && activeSessionId) {
+      const pname = (playUrl.match(/\/play\/([^/]+)\//) || [])[1];
+      updateSession(activeSessionId, { status: 'complete', projectName: pname, cost: totalCostUSD });
+    }
+    return;
+  }
+
+  if (type === 'error' || content.includes('Build failed')) {
+    addBotMessage(content, 'error');
+    stopBuilding();
+    if (activeSessionId) updateSession(activeSessionId, { status: 'failed' });
+    return;
+  }
+
+  if (type === 'info' && content.length > 30) addBotMessage(content, 'info');
+}
+
+function handleStatusMsg(msg) {
+  if (msg.status === 'completed') {
+    stopBuilding(msg.play_url);
+    if (msg.play_url) {
+      addBotMessage(`✅ **Build Complete!** Project: **${msg.project_name}**\n[▶ Play Now →](${msg.play_url})`, 'complete', msg.play_url);
+      if (activeSessionId) updateSession(activeSessionId, { status: 'complete', projectName: msg.project_name, cost: totalCostUSD });
+    }
+  } else if (msg.status === 'failed') {
+    stopBuilding();
+    addBotMessage(`❌ Build failed: ${msg.error}`, 'error');
+    if (activeSessionId) updateSession(activeSessionId, { status: 'failed' });
+  }
+  if (msg.cost_update) updateCostPanel(msg.cost_update);
+}
+
+async function pollStatus(jobId) {
+  try {
+    const r = await fetch(`/build/${jobId}`);
+    const d = await r.json();
+    if      (d.status === 'completed') stopBuilding(`/play/${d.project_name}/`);
+    else if (d.status === 'failed')    { stopBuilding(); addBotMessage(`❌ Build failed: ${d.error}`, 'error'); }
+    else    setTimeout(() => pollStatus(jobId), 3000);
+    if (d.cost_summary) updateCostPanel(d.cost_summary);
+  } catch(e) { setTimeout(() => pollStatus(jobId), 5000); }
+}
+
+// ── Build state helpers ────────────────────────────────────────────────────────
+function startBuilding() {
+  isBuilding = true;
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('selfImproveBtn').disabled = true;
+  document.getElementById('statusPill').textContent = 'BUILDING';
+  document.getElementById('statusPill').className   = 'status-pill running';
+  document.getElementById('buildProgress').classList.add('active');
+}
+function stopBuilding(playUrl) {
+  isBuilding = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('selfImproveBtn').disabled = false;
+  document.getElementById('statusPill').textContent = playUrl ? 'COMPLETE' : 'READY';
+  document.getElementById('statusPill').className   = 'status-pill';
+  document.getElementById('buildProgress').classList.remove('active');
+  if (playUrl) {
+    document.getElementById('projectLabel').textContent = playUrl;
+    document.getElementById('projectLabel').style.display = 'block';
+  }
+}
+function updateBuildProgress() {
+  const pct = totalFiles > 0 ? Math.min(95, (filesWritten / totalFiles) * 100) : 20;
+  document.getElementById('bpFill').style.width   = pct + '%';
+  document.getElementById('bpCount').textContent  = `${filesWritten} files written`;
+  document.getElementById('bpLabel').textContent  = 'Building...';
+  if (totalCostUSD > 0)
+    document.getElementById('bpCost').textContent = `$${totalCostUSD.toFixed(4)}`;
+}
+
+// ── Messages ───────────────────────────────────────────────────────────────────
+let _userScrolled = false;
+document.addEventListener('DOMContentLoaded', () => {
+  const msgs = document.getElementById('messages');
+  msgs.addEventListener('scroll', () => {
+    const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 60;
+    _userScrolled = !atBottom;
+  });
+});
+
+function addMessage(role, content, type, playUrl) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  const ICONS = { user:'👤', bot:'⚡', worker:'⚙️', squad:'🏗️', critic:'⚖️', complete:'🎉', error:'💥', blueprint:'🏗️', integrator:'🔗' };
+  const LABELS = { user:'You', bot:'GodDev' };
+  el.innerHTML = `
+    <div class="msg-avatar">${ICONS[role] || '⚡'}</div>
+    <div class="msg-body">
+      <div class="msg-label">${LABELS[role] || role}</div>
+      <div class="msg-bubble ${type || ''}"></div>
+      ${playUrl ? `<a class="play-btn" href="${playUrl}" target="_blank">▶ Open App</a>` : ''}
+    </div>`;
+  const bubble = el.querySelector('.msg-bubble');
+  try { bubble.innerHTML = marked.parse(String(content)); }
+  catch(e) { bubble.textContent = content; }
+  bubble.querySelectorAll('a').forEach(a => a.target = '_blank');
+
+  const msgs = document.getElementById('messages');
+  msgs.appendChild(el);
+
+  // Smart auto-scroll: only scroll if user hasn't scrolled up
+  if (!_userScrolled) {
+    requestAnimationFrame(() => msgs.scrollTop = msgs.scrollHeight);
+  }
+}
+
+function addBotMessage(content, type, playUrl) {
+  addMessage('bot', content, type, playUrl);
+}
+
+// ── Agent panel ────────────────────────────────────────────────────────────────
+const MODEL_BADGES = { claude:'badge-claude', openai:'badge-openai', gemini:'badge-gemini', deepseek:'badge-deepseek' };
+const MODEL_NAMES  = { claude:'Claude', openai:'GPT-4.1', gemini:'Gemini', deepseek:'DeepSeek' };
+
+function updateAgentCard(name, model, status, content, currentFile) {
+  if (!agentRegistry[name]) {
+    agentRegistry[name] = { model, status, files: 0, startTime: Date.now(), currentFile: null, cost: 0 };
+  }
+  const a  = agentRegistry[name];
+  a.model  = model || a.model;
+  a.status = status;
+  if (status === 'running' && !a.startTime) a.startTime = Date.now();
+  if (content && content.includes('PASS')) a.files++;
+  if (currentFile) a.currentFile = currentFile.split('/').pop();
+  // Absorb cost from agentCosts (updated by cost panel)
+  const mk = (model || '').toLowerCase();
+  const ck = mk.includes('claude') ? 'claude' : mk.includes('gpt') ? 'openai' : mk.includes('gemini') ? 'gemini' : 'deepseek';
+  a.cost   = agentCosts[ck] || 0;
+  updateAgentPanel();
+}
+
+function updateAgentPanel() {
+  const container = document.getElementById('agentCards');
+  const entries   = Object.entries(agentRegistry);
+  if (entries.length === 0) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">🤖</div><div>Agent activity appears here</div></div>`;
+    return;
+  }
+  container.innerHTML = entries.map(([name, a]) => {
+    const badge    = MODEL_BADGES[a.model] || 'badge-openai';
+    const mname    = MODEL_NAMES[a.model]  || a.model;
+    const elapsed  = a.startTime ? ((Date.now() - a.startTime) / 1000).toFixed(1) + 's' : '';
+    const sIcon    = a.status === 'running' ? '<span class="spinner"></span>' : a.status === 'done' ? '✅' : '❌';
+    const costStr  = a.cost > 0 ? `$${a.cost.toFixed(4)}` : '';
+    return `
+      <div class="agent-card ${a.status}">
+        <div class="agent-card-header">
+          <span class="agent-name">${sIcon} ${name}</span>
+          <span class="agent-model-badge ${badge}">${mname}</span>
+        </div>
+        <div class="agent-status-row">
+          <span>${a.files ? `📄 ${a.files} files` : ''} ${elapsed ? `⏱ ${elapsed}` : ''}</span>
+          ${costStr ? `<span class="cost-chip">${costStr}</span>` : ''}
+        </div>
+        ${a.currentFile ? `<div class="agent-current-file">📝 ${a.currentFile}</div>` : ''}
+        ${a.status === 'running' ? '<div class="progress-bar"><div class="progress-fill"></div></div>' : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── File tree ──────────────────────────────────────────────────────────────────
+const MODEL_DOT = { claude:'🟠', openai:'🟢', gemini:'🔵', deepseek:'🟣' };
+function addFileToTree(name, path, pass, bytes, agent) {
+  fileRegistry.push({ name, path, pass, bytes, agent });
+  updateFileTree(fileRegistry);
+}
+function updateFileTree(files) {
+  const container = document.getElementById('fileTree');
+  if (!files || !files.length) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">📁</div><div>Files appear as they're written</div></div>`;
+    return;
+  }
+  container.innerHTML = `<div class="file-tree">` +
+    files.map(f => `
+      <div class="file-item ${f.pass ? 'pass' : 'fail'}">
+        <span>${f.pass ? '✅' : '❌'}</span>
+        <span>${MODEL_DOT[f.agent] || '⚪'}</span>
+        <span class="file-name" title="${f.path}">${f.name}</span>
+        <span class="file-size">${f.bytes}b</span>
+      </div>`).join('') + `</div>`;
+}
+
+// ── Cost panel ─────────────────────────────────────────────────────────────────
+function updateCostPanel(data) {
+  if (!data) return;
+  totalCostUSD  = data.total_cost_usd || 0;
+  const total   = totalCostUSD;
+
+  // Update progress bar cost
+  if (isBuilding) document.getElementById('bpCost').textContent = `$${total.toFixed(4)}`;
+
+  // By model breakdown (Claude, OpenAI, Gemini, DeepSeek)
+  const breakdown = data.by_agent || {};
+  const models    = { claude: 0, openai: 0, gemini: 0, deepseek: 0 };
+  Object.entries(breakdown).forEach(([agent, info]) => {
+    const key = agent.toLowerCase().includes('claude') ? 'claude'
+              : agent.toLowerCase().includes('gpt')    ? 'openai'
+              : agent.toLowerCase().includes('gemini') ? 'gemini' : 'deepseek';
+    models[key] += (info.cost_usd || 0);
+  });
+  agentCosts = { ...models };
+
+  // Update sidebar session cost
+  if (activeSessionId) updateSession(activeSessionId, { cost: total });
+
+  // Render cost breakdown with enhanced details
+  const maxVal  = Math.max(...Object.values(models), 0.0001);
+  const LABELS  = { claude:'Claude', openai:'GPT-4.1', gemini:'Gemini', deepseek:'DeepSeek' };
+  const container = document.getElementById('costBreakdown');
+  
+  // By-model visualization
+  const modelBars = Object.entries(models).map(([m, v]) => `
+    <div class="cost-row">
+      <span class="cost-model" style="color:var(--${m})">${LABELS[m]}</span>
+      <div class="cost-bar-wrap"><div class="cost-bar bar-${m}" style="width:${(v/maxVal*100).toFixed(1)}%"></div></div>
+      <span class="cost-value">$${v.toFixed(4)}</span>
+    </div>`).join('');
+
+  // By-agent role breakdown (if available)
+  const byAgent = data.by_agent ? Object.entries(data.by_agent).map(([role, info]) => {
+    const costPerMTok = info.cost_per_million_tokens || 0;
+    return `
+    <div class="cost-row" style="opacity:0.85;font-size:10px">
+      <span class="cost-model" style="width:auto;text-transform:capitalize">${role}</span>
+      <span class="cost-value">$${(info.cost_usd || 0).toFixed(6)}</span>
+      <span class="cost-value" style="width:80px;text-align:right">$${costPerMTok.toFixed(2)}/M</span>
+      <span class="cost-value" style="width:70px;text-align:right">${info.total_tokens || 0} tk</span>
+    </div>`;
+  }).join('') : '';
+
+  // Render main panel
+  const costPerMTok = data.cost_per_million_tokens || 0;
+  container.innerHTML = `
+    <div style="margin-bottom:12px">
+      <h4 style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">By Provider</h4>
+      ${modelBars}
+    </div>
+    <div class="cost-total">Total: $${total.toFixed(4)}</div>
+    <div class="cost-tokens">${(data.total_tokens||0).toLocaleString()} tokens | $${costPerMTok.toFixed(2)}/M tokens</div>
+    ${byAgent ? `
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <h4 style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">By Agent Role</h4>
+      ${byAgent}
+    </div>` : ''}`;
+
+  // Flash cost tab if not active
+  const costTab = document.getElementById('tab-btn-cost');
+  if (!costTab.classList.contains('active') && total > 0) {
+    costTab.style.color = 'var(--green)';
+    setTimeout(() => costTab.style.color = '', 1000);
+  }
+}
+
+// ── Self-improvement ───────────────────────────────────────────────────────────
+function triggerSelfImprovement() {
+  if (isBuilding) { alert('Wait for current build to finish.'); return; }
+  if (improveAwaitingBrief) {
+    document.getElementById('prompt').focus();
+    return;
+  }
+  improveAwaitingBrief = true;
+  const imp = document.getElementById('selfImproveBtn');
+  if (imp) imp.classList.add('btn-improve-waiting');
+  const welcomeEl = document.getElementById('welcome');
+  if (welcomeEl) welcomeEl.style.display = 'none';
+  addBotMessage(
+    '🔬 **Self-improvement**\n\n'
+    + 'Describe what you want improved **first** (area of the product, behaviour, risk, or files). '
+    + 'Type it in the box below and press **Send** — your note is injected at the top of the run, '
+    + 'then the normal Meta CTO → workers → critics → deploy pipeline continues as always.\n\n'
+    + '_Tip: **Clear** cancels this step if you change your mind._',
+    'info'
+  );
+  const p = document.getElementById('prompt');
+  p.placeholder = 'What should we improve? Priorities, scope, constraints...';
+  p.focus();
+  requestAnimationFrame(() => {
+    const msgs = document.getElementById('messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  });
+}
+
+async function runSelfImproveWithInstruction(instruction) {
+  const imp = document.getElementById('selfImproveBtn');
+  if (imp) imp.classList.remove('btn-improve-waiting');
+  addBotMessage('🔬 **Starting self-improvement** — streaming assessor → research → Meta CTO → workers → critics → deploy...', 'info');
+  startBuilding();
+  document.getElementById('statusPill').textContent = 'SELF-IMPROVING';
+  try {
+    const res = await fetch('/self-improve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instruction: instruction || null }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(formatApiError(data) || res.statusText || 'Request failed');
+    if (!data.job_id) throw new Error('No job_id returned');
+    currentJobId = data.job_id;
+    if (activeSessionId) {
+      updateSession(activeSessionId, { jobId: data.job_id, status: 'running', name: 'Self-improve' });
+      localStorage.setItem('goddev_active_session', activeSessionId);
+    }
+    localStorage.setItem('goddev_last_job_id', data.job_id);
+    connectWebSocket(data.job_id);
+    addBotMessage(`🔬 Self-improve queued — Job \`${data.job_id}\`\nConnecting to live stream...`, 'info');
+  } catch (e) {
+    addBotMessage(`❌ Self-improvement failed: ${e.message}`, 'error');
+    stopBuilding();
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  marked.setOptions({ breaks: true, gfm: true });
+  document.getElementById('prompt').focus();
+  // Load existing projects into sidebar
+  loadExistingProjects();
+});
+
+async function loadExistingProjects() {
+  try {
+    const r = await fetch('/projects');
+    const d = await r.json();
+    if (d.projects && d.projects.length > 0) {
+      d.projects.forEach(p => {
+        const sess = createSession(p.name);
+        sess.projectName = p.name;
+        sess.status = 'complete';
+      });
+      // Don't auto-activate last — let user pick
+      activeSessionId = null;
+      renderSidebar();
+    }
+  } catch(e) {}
+}
+</script>
+</body>
+</html>

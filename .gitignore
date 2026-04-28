@@ -1,0 +1,42 @@
+# GodDev .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.env
+
+# Runtime data (regenerated on each run)
+memory/runtime_config.json
+memory/reflections.md
+memory/improvements.md
+memory/engine_telemetry.jsonl
+sessions/
+logs/
+*.jsonl
+
+# Staging (generated during builds)
+staging/
+
+# Projects (user-generated)
+projects/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Server config backup
+_upload_tmp/
+backups/
