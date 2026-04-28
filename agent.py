@@ -11,7 +11,16 @@ Cost-effective multi-role agent. Uses engines by strength:
 import requests, json, sys, os, subprocess, re
 from pathlib import Path
 
-WORKSPACE = "/opt/goddev"
+# Load .env for local development (safe: .env is gitignored)
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).parent / '.env'
+    if _env_path.exists():
+        load_dotenv(_env_path)
+except ImportError:
+    pass
+
+WORKSPACE = os.getenv("GODDEV_WORKSPACE", "/opt/goddev")
 MAX_BUDGET = 2.00
 
 KEYS = {
